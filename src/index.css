@@ -65,6 +65,9 @@ header h1 {
   line-height: 1.7;
   font-weight: 400;
   background: white;
+  height: fit-content;
+  min-height: 100vh;
+  min-width: 100vw;
 }
 
 .editor-shell .editor-container {

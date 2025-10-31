@@ -1,8 +1,11 @@
-import { app, BrowserWindow, dialog, Menu } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { importFile } from '@lexical/file'
+import electronDl from 'electron-dl';
+import {download, CancelError} from 'electron-dl';
+import debug from 'electron-debug';
+import { readFileWithDialog, saveWithDialog, saveWithoutDialog } from './event';
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -19,7 +22,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 process.env.APP_ROOT = path.join(__dirname, '..')
 
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
-export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
+// export const VITE_DEV_SERVER_URL =  process.env['VITE_DEV_SERVER_URL']
+export const VITE_DEV_SERVER_URL = "http://localhost:5173/"
 export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 
@@ -43,6 +47,7 @@ function createWindow() {
     icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
+      spellcheck: false
     },
   })
 
@@ -58,7 +63,7 @@ function createWindow() {
 
 
   if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL)
+    win.loadURL("http://localhost:5173/")
   } else {
     // win.loadFile('dist/index.html')
     win.loadFile(path.join(RENDERER_DIST, 'index.html'))
@@ -84,6 +89,14 @@ app.on('activate', () => {
 })
 
 
-
-app.whenReady().then(createWindow)
+electronDl()
+app.whenReady().then(()=>{
+    createWindow()
+    saveWithDialog()
+    saveWithoutDialog()
+    readFileWithDialog()
+    console.log("This is the vite dev server url")
+    console.log(VITE_DEV_SERVER_URL)
+  }
+)
 

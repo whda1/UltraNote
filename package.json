@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build && electron-builder",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "transpileElectron": "esbuild ./electron/main.ts --bundle --format=esm --platform=node --outdir=./dist-electron && esbuild ./electron/preload.ts --format=esm --outdir=./dist-electron --out-extension:.js=.mjs",
+    "debugMainProcess": "esbuild ./electron/main.ts ./electron/preload.ts --outdir=./dist-electron && electron ."
   },
   "dependencies": {
     "@excalidraw/excalidraw": "^0.18.0",
@@ -15,7 +17,11 @@
     "@lexical/file": "^0.37.0",
     "@lexical/react": "^0.37.0",
     "@reduxjs/toolkit": "^2.9.2",
+    "@tanstack/react-router": "^1.133.36",
+    "@tanstack/react-router-devtools": "^1.133.36",
     "date-fns": "^4.1.0",
+    "electron-debug": "^4.1.0",
+    "electron-dl": "^4.0.0",
     "lexical": "^0.37.0",
     "prettier": "^3.6.2",
     "react": "^18.3.1",
@@ -24,6 +30,8 @@
     "react-redux": "^9.2.0"
   },
   "devDependencies": {
+    "@tanstack/router-plugin": "^1.133.36",
+    "@types/lodash": "^4.17.20",
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
     "@typescript-eslint/eslint-plugin": "^7.1.1",
@@ -31,6 +39,7 @@
     "@vitejs/plugin-react": "^4.2.1",
     "electron": "^30.0.1",
     "electron-builder": "^24.13.3",
+    "esbuild": "^0.25.11",
     "eslint": "^8.57.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",

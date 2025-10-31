@@ -35,8 +35,8 @@ import TypingPerfPlugin from './plugins/TypingPerfPlugin';
 import Settings from './Settings';
 import PlaygroundEditorTheme from './themes/PlaygroundEditorTheme';
 
-import store from './app/store'
-import { Provider } from 'react-redux'
+import {store} from './app/store'
+import { Provider, useDispatch } from 'react-redux'
 
 console.warn(
   'If you are profiling the playground app, please ensure you turn off the debug view. You can disable it by pressing on the settings control in the bottom-left of your screen and toggling the debug view setting.',
@@ -126,6 +126,7 @@ function App(): JSX.Element {
   const {
     settings: {isCollab, emptyEditor, measureTypingPerf},
   } = useSettings();
+
 
   const app = useMemo(
     () =>

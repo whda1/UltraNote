@@ -79,8 +79,13 @@ import TwitterPlugin from './plugins/TwitterPlugin';
 import {VersionsPlugin} from './plugins/VersionsPlugin';
 import YouTubePlugin from './plugins/YouTubePlugin';
 import ContentEditable from './ui/ContentEditable';
-import { exportFile, importFile } from '@lexical/file';
+import { getExportFile,getImportFile,importFile } from './utils/file';
 import { Menu } from 'electron';
+import { useDispatch } from 'react-redux';
+import { currentFileSliceActions } from './features/currentFile';
+import { useAppSelector } from './app/hooks';
+import { isNullOrUndefined } from './utils/helper';
+import { AutoIndentationPlugin } from './plugins/IndentationPlugin';
 
 const COLLAB_DOC_ID = 'main';
 
@@ -114,6 +119,10 @@ export default function Editor(): JSX.Element {
       listStrictIndent,
     },
   } = useSettings();
+
+  const currentFile = useAppSelector(state=>state.currentFile)
+  const dispatch = useDispatch()
+
   const isEditable = useLexicalEditable();
   const placeholder = isCollab
     ? 'Enter some collaborative rich text...'
@@ -134,32 +143,29 @@ export default function Editor(): JSX.Element {
     }
   };
 
-  const handleKeyUp:KeyboardEventHandler<HTMLDivElement> = (event)=>{
-    if(event.ctrlKey===true && event.key==='s'){
-      exportFile(editor, {
-        fileName: `Playground ${new Date().toISOString()}`,
-        source: 'Ultra Note',
-      })
+  const handleKeyUp:KeyboardEventHandler<HTMLDivElement> = async (event)=>{
+
+    if(event.ctrlKey===true && event.key.toLowerCase()==='s'){
+      const {fileContent,fileName,lastSaved} = await getExportFile(editor,{fileName:currentFile.name??undefined})
+      // Do when currentFile is null or shiftKey is also press
+      // shirftKey pressed indicates Save as action
+      if(isNullOrUndefined(currentFile.path) || event.shiftKey===true){
+        const filePath = await window.ipcRenderer.saveWithDialog({fileContent,fileName})
+        dispatch(currentFileSliceActions.SET_STATE({
+          filePath,
+          lastSaved
+        }))
+      }else{
+        const path = await window.ipcRenderer.saveWithoutDialog({fileContent,fileName:`${currentFile.name}`,filePath:currentFile.path})
+        console.log(path)
+      }
+      
     }else if (event.ctrlKey === true && event.key === 'i'){
-      debugger
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.lexical';
-      input.addEventListener('change', event => {
-        const target:any = event.target;
-        if (target.files) {
-          const file = target.files[0];
-          const reader = new FileReader();
-          reader.readAsText(file, 'UTF-8');
-          reader.onload = readerEvent => {
-            if (readerEvent.target) {
-              debugger
-              const content = readerEvent.target.result;
-            }
-          };
-        }
-      });
-      input.click()
+      const {fileContent,filePath} = await window.ipcRenderer.readFileWithDialog()
+      getImportFile(editor,fileContent)
+      dispatch(currentFileSliceActions.SET_STATE({
+        filePath,lastSaved:null
+      }))
     }
   }
 
@@ -184,6 +190,7 @@ export default function Editor(): JSX.Element {
 
   return (
     <>
+      
       {isRichText && (
         <ToolbarPlugin
           editor={editor}
@@ -257,7 +264,7 @@ export default function Editor(): JSX.Element {
             <EquationsPlugin />
             <ExcalidrawPlugin />
             <TabFocusPlugin />
-            <TabIndentationPlugin maxIndent={7} />
+            <TabIndentationPlugin  />
             <CollapsiblePlugin />
             <PageBreakPlugin />
             <LayoutPlugin />
@@ -311,6 +318,7 @@ export default function Editor(): JSX.Element {
         /> */}
       </div>
       {/* {showTreeView && <TreeViewPlugin />} */}
+      <AutoIndentationPlugin/>
     </>
   );
 }

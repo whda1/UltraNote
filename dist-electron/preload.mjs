@@ -16,7 +16,9 @@ electron.contextBridge.exposeInMainWorld("ipcRenderer", {
   invoke(...args) {
     const [channel, ...omit] = args;
     return electron.ipcRenderer.invoke(channel, ...omit);
-  }
-  // You can expose other APTs you need here.
-  // ...
+  },
+  ping: () => electron.ipcRenderer.invoke("ping"),
+  saveWithDialog: (data) => electron.ipcRenderer.invoke("saveWithDialog", data),
+  saveWithoutDialog: (data) => electron.ipcRenderer.invoke("saveWithoutDialog", data),
+  readFileWithDialog: (data) => electron.ipcRenderer.invoke("readFileWithDialog", data)
 });

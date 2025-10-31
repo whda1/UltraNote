@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     return ipcRenderer.invoke(channel, ...omit)
   },
 
-  // You can expose other APTs you need here.
-  // ...
+  ping: () => ipcRenderer.invoke('ping'),
+  saveWithDialog: (data:any)=> ipcRenderer.invoke('saveWithDialog',data),
+  saveWithoutDialog: (data:any)=> ipcRenderer.invoke('saveWithoutDialog',data),
+  readFileWithDialog: (data:any)=> ipcRenderer.invoke('readFileWithDialog',data)
 })
