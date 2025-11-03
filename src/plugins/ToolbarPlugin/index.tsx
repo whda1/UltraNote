@@ -193,6 +193,7 @@ const FONT_FAMILY_OPTIONS: [string, string][] = [
   ['Georgia', 'Georgia'],
   ['Trebuchet MS', 'Trebuchet MS'],
   ['Verdana', 'Verdana'],
+  ['Dorelia', 'Dorelia'],
 ];
 
 const FONT_SIZE_OPTIONS: [string, string][] = [

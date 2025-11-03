@@ -30,7 +30,7 @@ import {TabIndentationPlugin} from '@lexical/react/LexicalTabIndentationPlugin';
 import {TablePlugin} from '@lexical/react/LexicalTablePlugin';
 import {useLexicalEditable} from '@lexical/react/useLexicalEditable';
 import {CAN_USE_DOM} from '@lexical/utils';
-import {useEffect, useMemo, useState} from 'react';
+import {useCallback, useEffect, useId, useMemo, useRef, useState} from 'react';
 import {Doc} from 'yjs';
 
 import {useSettings} from './context/SettingsContext';
@@ -79,13 +79,19 @@ import TwitterPlugin from './plugins/TwitterPlugin';
 import {VersionsPlugin} from './plugins/VersionsPlugin';
 import YouTubePlugin from './plugins/YouTubePlugin';
 import ContentEditable from './ui/ContentEditable';
-import { getExportFile,getImportFile,importFile } from './utils/file';
+import { getExportFile,getImportFile } from './utils/file';
 import { Menu } from 'electron';
 import { useDispatch } from 'react-redux';
-import { currentFileSliceActions } from './features/currentFile';
+import { FileSliceAction, initialFileContent, selectFiles, selectFileSlice, selectMemActiveFile } from './features/FileSlice';
 import { useAppSelector } from './app/hooks';
 import { isNullOrUndefined } from './utils/helper';
 import { AutoIndentationPlugin } from './plugins/IndentationPlugin';
+import { Tabs } from "@sinm/react-chrome-tabs";
+import '@sinm/react-chrome-tabs/css/chrome-tabs.css';
+import Button from '@mui/material/Button';
+import { v4 as uuidv4 } from 'uuid';
+import { serializedDocumentFromEditorState } from '@lexical/file';
+
 
 const COLLAB_DOC_ID = 'main';
 
@@ -94,6 +100,7 @@ const skipCollaborationInit =
   window.parent != null && window.parent.frames.right === window;
 
 export default function Editor(): JSX.Element {
+
   const {historyState} = useSharedHistoryContext();
   const {
     settings: {
@@ -119,8 +126,8 @@ export default function Editor(): JSX.Element {
       listStrictIndent,
     },
   } = useSettings();
-
-  const currentFile = useAppSelector(state=>state.currentFile)
+  const files = useAppSelector(selectFiles)
+  const activeFile = useAppSelector(selectMemActiveFile)
   const dispatch = useDispatch()
 
   const isEditable = useLexicalEditable();
@@ -143,29 +150,33 @@ export default function Editor(): JSX.Element {
     }
   };
 
-  const handleKeyUp:KeyboardEventHandler<HTMLDivElement> = async (event)=>{
 
+  const handleKeyUp:KeyboardEventHandler<HTMLDivElement> = async (event)=>{
+    
     if(event.ctrlKey===true && event.key.toLowerCase()==='s'){
-      const {fileContent,fileName,lastSaved} = await getExportFile(editor,{fileName:currentFile.name??undefined})
+      const {fileContent,fileName,lastSaved} = await getExportFile(editor,{fileName:activeFile?.name??undefined})
       // Do when currentFile is null or shiftKey is also press
       // shirftKey pressed indicates Save as action
-      if(isNullOrUndefined(currentFile.path) || event.shiftKey===true){
+      const stringifiedContent = JSON.stringify(serializedDocumentFromEditorState(editor.getEditorState()));
+      if(isNullOrUndefined(activeFile?.path) || event.shiftKey===true){
         const filePath = await window.ipcRenderer.saveWithDialog({fileContent,fileName})
-        dispatch(currentFileSliceActions.SET_STATE({
+        console.log(filePath)
+        dispatch(FileSliceAction.SET_STATE({
+          fileContent:stringifiedContent,
           filePath,
-          lastSaved
+          lastSaved,
+          id:uuidv4(),
+          active:true,
         }))
       }else{
-        const path = await window.ipcRenderer.saveWithoutDialog({fileContent,fileName:`${currentFile.name}`,filePath:currentFile.path})
+        const path = await window.ipcRenderer.saveWithoutDialog({fileContent:stringifiedContent,fileName:`${activeFile.name}`,filePath:activeFile.path})
         console.log(path)
       }
       
     }else if (event.ctrlKey === true && event.key === 'i'){
       const {fileContent,filePath} = await window.ipcRenderer.readFileWithDialog()
       getImportFile(editor,fileContent)
-      dispatch(currentFileSliceActions.SET_STATE({
-        filePath,lastSaved:null
-      }))
+      dispatch(FileSliceAction.SET_STATE({...activeFile,filePath, lastSaved:null, fileContent} as any) )
     }
   }
 
@@ -181,15 +192,41 @@ export default function Editor(): JSX.Element {
     updateViewPortWidth();
     window.addEventListener('resize', updateViewPortWidth);
 
-    
-
     return () => {
       window.removeEventListener('resize', updateViewPortWidth);
     };
   }, [isSmallWidthViewport]);
+  
 
+  const addTab = () => {
+    const fileContent = JSON.stringify(serializedDocumentFromEditorState(editor.getEditorState()));
+    const newId = uuidv4()
+    dispatch(FileSliceAction.SET_STATE({id:newId,filePath:null,lastSaved:null,fileContent:null,active:false}));
+    dispatch(FileSliceAction.TOGGLE_ACTIVE({id:newId,fileContent}));
+  };
+  const active = (id: string) => {
+    const fileContent = JSON.stringify(serializedDocumentFromEditorState(editor.getEditorState()));
+    dispatch(FileSliceAction.TOGGLE_ACTIVE({id:id,fileContent}));
+  };
+
+  const close = (id: string) => {
+    dispatch(FileSliceAction.DELETE_STATE({id}));
+  };
+
+  useEffect(() => {
+    if(isNullOrUndefined(activeFile)) return;
+    getImportFile(editor,activeFile.fileContent??"");
+  }, [activeFile]);
   return (
     <>
+      <Tabs
+        onTabClose={close}
+        onTabActive={active}
+        onDragBegin={() => console.log('Drag started')}
+        onDragEnd={() => console.log('Drag ended')}
+        tabs={files as any}
+        pinnedRight={<Button size='small' onClick={addTab}>+</Button>}
+      />
       
       {isRichText && (
         <ToolbarPlugin

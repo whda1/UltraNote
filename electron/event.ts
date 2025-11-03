@@ -16,6 +16,7 @@ export function saveWithDialog(){
     if (filePath) {
         try {
             fs.writeFileSync(filePath, fileContent);
+            console.log('File saved successfully to', filePath);
             return filePath; // Return the path if successful
         } catch (err) {
             console.error('Failed to save file:', err);

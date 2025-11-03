@@ -23,7 +23,6 @@ export function AutoIndentationPlugin(){
     const [editor] = useLexicalComposerContext();
 
     const onEnterPressHandler = (event:KeyboardEvent)=>{
-        debugger
         const selection = $getSelection();
         const nodes = selection?.getNodes()
         if(isNullOrUndefined(nodes)) return false

@@ -1,9 +1,9 @@
 import { configureStore } from "@reduxjs/toolkit";
-import configReducer, { currentFile } from "../features/currentFile"
+import configReducer, { FileSlice } from "../features/FileSlice"
 
 export const store = configureStore({
   reducer: {
-    currentFile:configReducer
+    FileSlice:configReducer
   },
 });
 

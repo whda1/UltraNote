@@ -8,6 +8,14 @@
 
 @import 'https://fonts.googleapis.com/css?family=Reenie+Beanie';
 
+@font-face {
+    font-family: 'Dorelia';
+    src: url('./fonts/Dorelia-ExtrudeRight.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+}
+
+
 body {
   margin: 0;
   font-family:
@@ -22,6 +30,13 @@ body {
   padding: 0 20px;
 
 }
+
+.dazney-font {
+    font-family: 'Dazney';
+    font-weight: normal;
+    font-style: normal;
+}
+
 
 #root{
   background: white;
