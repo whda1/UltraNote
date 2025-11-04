@@ -11089,6 +11089,7 @@ function saveWithDialog() {
     if (filePath) {
       try {
         fs$1.writeFileSync(filePath, fileContent);
+        console.log("File saved successfully to", filePath);
         return filePath;
       } catch (err) {
         console.error("Failed to save file:", err);

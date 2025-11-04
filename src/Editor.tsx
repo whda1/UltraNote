@@ -79,10 +79,10 @@ import TwitterPlugin from './plugins/TwitterPlugin';
 import {VersionsPlugin} from './plugins/VersionsPlugin';
 import YouTubePlugin from './plugins/YouTubePlugin';
 import ContentEditable from './ui/ContentEditable';
-import { getExportFile,getImportFile } from './utils/file';
+import { getExportFile,getFilePath,getImportFile } from './utils/file';
 import { Menu } from 'electron';
 import { useDispatch } from 'react-redux';
-import { FileSliceAction, initialFileContent, selectFiles, selectFileSlice, selectMemActiveFile } from './features/FileSlice';
+import { FileSliceAction, initialFileContent, initStateType, selectFiles, selectFileSlice, selectMemActiveFile } from './features/FileSlice';
 import { useAppSelector } from './app/hooks';
 import { isNullOrUndefined } from './utils/helper';
 import { AutoIndentationPlugin } from './plugins/IndentationPlugin';
@@ -91,6 +91,8 @@ import '@sinm/react-chrome-tabs/css/chrome-tabs.css';
 import Button from '@mui/material/Button';
 import { v4 as uuidv4 } from 'uuid';
 import { serializedDocumentFromEditorState } from '@lexical/file';
+import { ChromeTab } from './ChromeTab';
+
 
 
 const COLLAB_DOC_ID = 'main';
@@ -126,8 +128,7 @@ export default function Editor(): JSX.Element {
       listStrictIndent,
     },
   } = useSettings();
-  const files = useAppSelector(selectFiles)
-  const activeFile = useAppSelector(selectMemActiveFile)
+  const activeFile:Nullable<initStateType> = useAppSelector(selectMemActiveFile)
   const dispatch = useDispatch()
 
   const isEditable = useLexicalEditable();
@@ -154,29 +155,38 @@ export default function Editor(): JSX.Element {
   const handleKeyUp:KeyboardEventHandler<HTMLDivElement> = async (event)=>{
     
     if(event.ctrlKey===true && event.key.toLowerCase()==='s'){
-      const {fileContent,fileName,lastSaved} = await getExportFile(editor,{fileName:activeFile?.name??undefined})
+      debugger
+      const {fileContent,fileName,lastSaved} = await getExportFile(editor,{fileName:activeFile?.fileName??undefined})
       // Do when currentFile is null or shiftKey is also press
       // shirftKey pressed indicates Save as action
       const stringifiedContent = JSON.stringify(serializedDocumentFromEditorState(editor.getEditorState()));
-      if(isNullOrUndefined(activeFile?.path) || event.shiftKey===true){
+      if(isNullOrUndefined(activeFile?.fileFullPath) || event.shiftKey===true){
         const filePath = await window.ipcRenderer.saveWithDialog({fileContent,fileName})
-        console.log(filePath)
         dispatch(FileSliceAction.SET_STATE({
-          fileContent:stringifiedContent,
-          filePath,
+          id:activeFile!.id,
           lastSaved,
-          id:uuidv4(),
+          ...getFilePath(filePath),
+          fileContent:stringifiedContent,
           active:true,
+          isDirty:false,
         }))
       }else{
-        const path = await window.ipcRenderer.saveWithoutDialog({fileContent:stringifiedContent,fileName:`${activeFile.name}`,filePath:activeFile.path})
-        console.log(path)
+        await window.ipcRenderer.saveWithoutDialog({fileContent:stringifiedContent,fileName:`${activeFile.fileName}`,filePath:activeFile.filePath})
+        dispatch(FileSliceAction.SET_STATE({
+          ...activeFile,
+          id:activeFile!.id,
+          lastSaved,
+          fileContent:stringifiedContent,
+          active:true,
+          isDirty:false
+        }))
       }
       
-    }else if (event.ctrlKey === true && event.key === 'i'){
+    }else if (event.ctrlKey === true && event.key.toLowerCase() === 'i'){
       const {fileContent,filePath} = await window.ipcRenderer.readFileWithDialog()
       getImportFile(editor,fileContent)
-      dispatch(FileSliceAction.SET_STATE({...activeFile,filePath, lastSaved:null, fileContent} as any) )
+      
+      dispatch(FileSliceAction.SET_STATE({...activeFile,...getFilePath(filePath), lastSaved:null, fileContent,isDirty:false} as any) )
     }
   }
 
@@ -197,165 +207,141 @@ export default function Editor(): JSX.Element {
     };
   }, [isSmallWidthViewport]);
   
-
-  const addTab = () => {
-    const fileContent = JSON.stringify(serializedDocumentFromEditorState(editor.getEditorState()));
-    const newId = uuidv4()
-    dispatch(FileSliceAction.SET_STATE({id:newId,filePath:null,lastSaved:null,fileContent:null,active:false}));
-    dispatch(FileSliceAction.TOGGLE_ACTIVE({id:newId,fileContent}));
-  };
-  const active = (id: string) => {
-    const fileContent = JSON.stringify(serializedDocumentFromEditorState(editor.getEditorState()));
-    dispatch(FileSliceAction.TOGGLE_ACTIVE({id:id,fileContent}));
-  };
-
-  const close = (id: string) => {
-    dispatch(FileSliceAction.DELETE_STATE({id}));
-  };
-
-  useEffect(() => {
-    if(isNullOrUndefined(activeFile)) return;
-    getImportFile(editor,activeFile.fileContent??"");
-  }, [activeFile]);
   return (
     <>
-      <Tabs
-        onTabClose={close}
-        onTabActive={active}
-        onDragBegin={() => console.log('Drag started')}
-        onDragEnd={() => console.log('Drag ended')}
-        tabs={files as any}
-        pinnedRight={<Button size='small' onClick={addTab}>+</Button>}
-      />
-      
-      {isRichText && (
-        <ToolbarPlugin
-          editor={editor}
-          activeEditor={activeEditor}
-          setActiveEditor={setActiveEditor}
-          setIsLinkEditMode={setIsLinkEditMode}
-        />
-      )}
-      {isRichText && (
-        <ShortcutsPlugin
-          editor={activeEditor}
-          setIsLinkEditMode={setIsLinkEditMode}
-        />
-      )}
-      <div
-        onKeyUp={handleKeyUp}
-        className={`editor-container ${showTreeView ? 'tree-view' : ''} ${
-          !isRichText ? 'plain-text' : ''
-        }`}>
-        {isMaxLength && <MaxLengthPlugin maxLength={30} />}
-        <DragDropPaste />
-        <AutoFocusPlugin />
-        {selectionAlwaysOnDisplay && <SelectionAlwaysOnDisplay />}
-        <ClearEditorPlugin />
-        <ComponentPickerPlugin />
-        <EmojiPickerPlugin />
-        <AutoEmbedPlugin />
-        <MentionsPlugin />
-        <EmojisPlugin />
-        <HashtagPlugin />
-        <KeywordsPlugin />
-        <SpeechToTextPlugin />
-        <AutoLinkPlugin />
-        <DateTimePlugin />
-        {isRichText ? (
-          <>
-            <HistoryPlugin externalHistoryState={historyState} />
-            <RichTextPlugin
-              contentEditable={
-                <div className="editor-scroller">
-                  <div className="editor" ref={onRef}>
-                    <ContentEditable placeholder={placeholder} />
-                  </div>
-                </div>
-              }
-              ErrorBoundary={LexicalErrorBoundary}
-            />
-            <MarkdownShortcutPlugin />
-            {isCodeHighlighted &&
-              (isCodeShiki ? (
-                <CodeHighlightShikiPlugin />
-              ) : (
-                <CodeHighlightPrismPlugin />
-              ))}
-            <ListPlugin hasStrictIndent={listStrictIndent} />
-            <CheckListPlugin />
-            <TablePlugin
-              hasCellMerge={tableCellMerge}
-              hasCellBackgroundColor={tableCellBackgroundColor}
-              hasHorizontalScroll={tableHorizontalScroll}
-            />
-            <TableCellResizer />
-            <ImagesPlugin />
-            <LinkPlugin hasLinkAttributes={hasLinkAttributes} />
-            <PollPlugin />
-            <TwitterPlugin />
-            <YouTubePlugin />
-            <FigmaPlugin />
-            <ClickableLinkPlugin disabled={isEditable} />
-            <HorizontalRulePlugin />
-            <EquationsPlugin />
-            <ExcalidrawPlugin />
-            <TabFocusPlugin />
-            <TabIndentationPlugin  />
-            <CollapsiblePlugin />
-            <PageBreakPlugin />
-            <LayoutPlugin />
-            {floatingAnchorElem && (
-              <>
-                <FloatingLinkEditorPlugin
-                  anchorElem={floatingAnchorElem}
-                  isLinkEditMode={isLinkEditMode}
-                  setIsLinkEditMode={setIsLinkEditMode}
-                />
-                <TableCellActionMenuPlugin
-                  anchorElem={floatingAnchorElem}
-                  cellMerge={true}
-                />
-              </>
-            )}
-            {floatingAnchorElem && !isSmallWidthViewport && (
-              <>
-                <DraggableBlockPlugin anchorElem={floatingAnchorElem} />
-                <CodeActionMenuPlugin anchorElem={floatingAnchorElem} />
-                <TableHoverActionsPlugin anchorElem={floatingAnchorElem} />
-                <FloatingTextFormatToolbarPlugin
-                  anchorElem={floatingAnchorElem}
-                  setIsLinkEditMode={setIsLinkEditMode}
-                />
-              </>
-            )}
-          </>
-        ) : (
-          <>
-            <PlainTextPlugin
-              contentEditable={<ContentEditable placeholder={placeholder} />}
-              ErrorBoundary={LexicalErrorBoundary}
-            />
-            <HistoryPlugin externalHistoryState={historyState} />
-          </>
-        )}
-        {(isCharLimit || isCharLimitUtf8) && (
-          <CharacterLimitPlugin
-            charset={isCharLimit ? 'UTF-16' : 'UTF-8'}
-            maxLength={5}
+      <ChromeTab/>
+      { activeFile &&
+        <>
+        {isRichText && (
+          <ToolbarPlugin
+            editor={editor}
+            activeEditor={activeEditor}
+            setActiveEditor={setActiveEditor}
+            setIsLinkEditMode={setIsLinkEditMode}
           />
         )}
-        {/* {isAutocomplete && <AutocompletePlugin />}
-        <div>{showTableOfContents && <TableOfContentsPlugin />}</div>
-        {shouldUseLexicalContextMenu && <ContextMenuPlugin />}
-        {shouldAllowHighlightingWithBrackets && <SpecialTextPlugin />} */}
-        {/* <ActionsPlugin
-          shouldPreserveNewLinesInMarkdown={shouldPreserveNewLinesInMarkdown}
-          useCollabV2={useCollabV2}
-        /> */}
-      </div>
-      {/* {showTreeView && <TreeViewPlugin />} */}
-      <AutoIndentationPlugin/>
+        {isRichText && (
+          <ShortcutsPlugin
+            editor={activeEditor}
+            setIsLinkEditMode={setIsLinkEditMode}
+          />
+        )}
+        <div
+          onKeyUp={handleKeyUp}
+          className={`editor-container ${showTreeView ? 'tree-view' : ''} ${
+            !isRichText ? 'plain-text' : ''
+          }`}>
+          {isMaxLength && <MaxLengthPlugin maxLength={30} />}
+          <DragDropPaste />
+          <AutoFocusPlugin />
+          {selectionAlwaysOnDisplay && <SelectionAlwaysOnDisplay />}
+          <ClearEditorPlugin />
+          <ComponentPickerPlugin />
+          <EmojiPickerPlugin />
+          <AutoEmbedPlugin />
+          <MentionsPlugin />
+          <EmojisPlugin />
+          <HashtagPlugin />
+          <KeywordsPlugin />
+          <SpeechToTextPlugin />
+          <AutoLinkPlugin />
+          <DateTimePlugin />
+          {isRichText ? (
+            <>
+              <HistoryPlugin externalHistoryState={historyState} />
+              <RichTextPlugin
+                contentEditable={
+                  <div className="editor-scroller">
+                    <div className="editor" ref={onRef}>
+                      <ContentEditable placeholder={placeholder} />
+                    </div>
+                  </div>
+                }
+                ErrorBoundary={LexicalErrorBoundary}
+              />
+              <MarkdownShortcutPlugin />
+              {isCodeHighlighted &&
+                (isCodeShiki ? (
+                  <CodeHighlightShikiPlugin />
+                ) : (
+                  <CodeHighlightPrismPlugin />
+                ))}
+              <ListPlugin hasStrictIndent={listStrictIndent} />
+              <CheckListPlugin />
+              <TablePlugin
+                hasCellMerge={tableCellMerge}
+                hasCellBackgroundColor={tableCellBackgroundColor}
+                hasHorizontalScroll={tableHorizontalScroll}
+              />
+              <TableCellResizer />
+              <ImagesPlugin />
+              <LinkPlugin hasLinkAttributes={hasLinkAttributes} />
+              <PollPlugin />
+              <TwitterPlugin />
+              <YouTubePlugin />
+              <FigmaPlugin />
+              <ClickableLinkPlugin disabled={isEditable} />
+              <HorizontalRulePlugin />
+              <EquationsPlugin />
+              <ExcalidrawPlugin />
+              <TabFocusPlugin />
+              <TabIndentationPlugin  />
+              <CollapsiblePlugin />
+              <PageBreakPlugin />
+              <LayoutPlugin />
+              {floatingAnchorElem && (
+                <>
+                  <FloatingLinkEditorPlugin
+                    anchorElem={floatingAnchorElem}
+                    isLinkEditMode={isLinkEditMode}
+                    setIsLinkEditMode={setIsLinkEditMode}
+                  />
+                  <TableCellActionMenuPlugin
+                    anchorElem={floatingAnchorElem}
+                    cellMerge={true}
+                  />
+                </>
+              )}
+              {floatingAnchorElem && !isSmallWidthViewport && (
+                <>
+                  <DraggableBlockPlugin anchorElem={floatingAnchorElem} />
+                  <CodeActionMenuPlugin anchorElem={floatingAnchorElem} />
+                  <TableHoverActionsPlugin anchorElem={floatingAnchorElem} />
+                  <FloatingTextFormatToolbarPlugin
+                    anchorElem={floatingAnchorElem}
+                    setIsLinkEditMode={setIsLinkEditMode}
+                  />
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <PlainTextPlugin
+                contentEditable={<ContentEditable placeholder={placeholder} />}
+                ErrorBoundary={LexicalErrorBoundary}
+              />
+              <HistoryPlugin externalHistoryState={historyState} />
+            </>
+          )}
+          {(isCharLimit || isCharLimitUtf8) && (
+            <CharacterLimitPlugin
+              charset={isCharLimit ? 'UTF-16' : 'UTF-8'}
+              maxLength={5}
+            />
+          )}
+          {/* {isAutocomplete && <AutocompletePlugin />}
+          <div>{showTableOfContents && <TableOfContentsPlugin />}</div>
+          {shouldUseLexicalContextMenu && <ContextMenuPlugin />}
+          {shouldAllowHighlightingWithBrackets && <SpecialTextPlugin />} */}
+          {/* <ActionsPlugin
+            shouldPreserveNewLinesInMarkdown={shouldPreserveNewLinesInMarkdown}
+            useCollabV2={useCollabV2}
+          /> */}
+        </div>
+        {/* {showTreeView && <TreeViewPlugin />} */}
+        <AutoIndentationPlugin/>
+        </>
+      }
     </>
   );
 }

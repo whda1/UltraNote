@@ -3,26 +3,27 @@ import { constant } from '../constant'
 import { assignValue, isNullOrUndefined } from '../utils/helper'
 import { v4 as uuidv4 } from 'uuid';
 import { RootState } from '../app/store';
-import { stat } from 'original-fs';
-import { previousDay } from 'date-fns';
+import equal from "fast-deep-equal/es6"
 
 
-type initStateType = {
+export type initStateType = {
   lastSaved:number,
-  name:string,
-  path:string,
+  fileName:string,
+  filePath:string,
+  fileFullPath:string,
   fileContent:string,
   active:boolean,
   id:string
-  title:string
+  title?:string
   isDirty:boolean
 }
 
 export const initialFileContent = '{"editorState":{"root":{"children":[{"children":[{"detail":0,"format":0,"mode":"normal","style":"","text":"","type":"text","version":1}],"direction":null,"format":"","indent":0,"type":"paragraph","version":1,"textFormat":0,"textStyle":""}],"direction":null,"format":"","indent":0,"type":"root","version":1}},"lastSaved":"null","source":"Lexical","version":"0.37.0"}'
 const initState:Nullable<initStateType> = {
   lastSaved:null,
-  name:null,
-  path:null,
+  fileName:null,
+  filePath:null,
+  fileFullPath:null,
   fileContent:initialFileContent,
   active:true,
   id:null,
@@ -32,30 +33,48 @@ const initState:Nullable<initStateType> = {
 
 const initFile = ()=>{
   const id = uuidv4()
+  const file = createFile({...initState,id:id})
   return {
     data:{
-      [id]:{
-      ...initState,
-      id:id
-      }
+      [id]:file
     },
     ids:[id]
   }
 }
 
-const createFile = ({filePath,fileContent,lastSaved,active,id,name,isDirty=false}:any)=>{
+const createFile = ({lastSaved,fileName,fileContent,fileFullPath,filePath,id,isDirty,active}:Nullable<initStateType>)=>{
+  const titlePostfix = isDirty?" - *":""
   const result:any = {}
-  const pathSep = isNullOrUndefined(filePath) ? null : filePath.includes('\\')?'\\':'/'
-  const splittedPathList:string[] = isNullOrUndefined(filePath) ? null : filePath.split(pathSep)
+  result.filePath = filePath,
+  result.fileName = fileName,
+  result.fileFullPath = fileFullPath,
   result.lastSaved = lastSaved
-  result.name = isNullOrUndefined(filePath) ? null : splittedPathList[splittedPathList.length-1]
-  result.path = isNullOrUndefined(filePath) ? null : filePath.substring(0,filePath.lastIndexOf(pathSep+result.name))
   result.fileContent = fileContent??initialFileContent
   result.active = active
-  result.title = name
+  result.title ="🗂️ "+ (result.fileName ?? "untitled") + titlePostfix
   result.id = id
   result.isDirty = isDirty
   return result
+}
+
+function getIsDirty(previous:string,current:string){
+
+  const currentActiveFileContent = JSON.parse(current)
+  const previousActiveFileContent = JSON.parse(previous)
+
+  const isDirty = !equal(previousActiveFileContent.editorState.root.children,currentActiveFileContent.editorState.root.children)
+  return isDirty
+}
+
+function toggleActive(data:any,payload:any){
+  for (const key in data){
+    if(data[key].active === true && key !== payload.id){
+      const isDirty = data[key].isDirty===true?true:getIsDirty(data[key].fileContent,payload.fileContent)
+      data[key] = createFile({...data[key],isDirty:isDirty,active:false,fileContent:payload.fileContent})
+      continue
+    }
+    data[key] = createFile({...data[key],active:key===payload.id})
+  }
 }
 
 export const FileSlice = createSlice({
@@ -68,17 +87,12 @@ export const FileSlice = createSlice({
           ids:[] as string[]
         }
     },
-    [constant.setState]:(state,action:PayloadAction<{id:string|null,filePath:string|null,lastSaved:number|null,fileContent:string|null,active:boolean}>)=>{
+    [constant.setState]:(state,action:PayloadAction<Nullable<initStateType>>)=>{
         if(isNullOrUndefined(action.payload.id)){
           throw new Error("ID is required to set file state")
         }
         state.data[action.payload.id] = createFile({
-          filePath:action.payload.filePath,
-          fileContent:action.payload.fileContent,
-          lastSaved:action.payload.lastSaved,
-          active:action.payload.active,
-          id:action.payload.id,
-          name:action.payload.id
+          ...action.payload
         })
         state.ids = Array.from(new Set([...state.ids,action.payload.id]))
     },
@@ -86,59 +100,25 @@ export const FileSlice = createSlice({
         if(isNullOrUndefined(action.payload.id)){
           throw new Error("ID is required to toggle active state")
         }
-        const currentActiveFileContent = action.payload.fileContent
-        for (const key in state.data){
-          if(state.data[key].active === true){
-            const previousActiveFileContent = state.data[key].fileContent
-            if(previousActiveFileContent !== currentActiveFileContent){
-              state.data[key].isDirty = true
-              state.data[key].active = false
-              state.data[key].fileContent = action.payload.fileContent
-            }
-          }
-          state.data[key].active = action.payload.id === key
-        }
+        toggleActive(state.data,action.payload)
     },
-    [constant.addState]:(state,action:PayloadAction<{id:string|null,filePath:string|null,lastSaved:number|null,fileContent:string|null,active:boolean}>)=>{
-        if(isNullOrUndefined(action.payload.id)){
-          throw new Error("ID is required to set file state")
-        }
-        state.data[action.payload.id] = createFile({
-          filePath:action.payload.filePath,
-          fileContent:action.payload.fileContent,
-          lastSaved:action.payload.lastSaved,
-          active:action.payload.active,
-          id:action.payload.id,
-          name:action.payload.id
-        })
-        state.ids = Array.from(new Set([...state.ids,action.payload.id]))
-
-        const currentActiveFileContent = action.payload.fileContent
-        for (const key in state.data){
-          if(state.data[key].active === true){
-            const previousActiveFileContent = state.data[key].fileContent
-            if(previousActiveFileContent !== currentActiveFileContent){
-              state.data[key].isDirty = true
-              state.data[key].active = false
-              state.data[key].fileContent = action.payload.fileContent
-            }
-          }
-          state.data[key].active = action.payload.id === key
-        }
-
+    [constant.addState]:(state,action:PayloadAction<{id:string,fileContent:string}>)=>{
+      if(isNullOrUndefined(action.payload.id)){
+        throw new Error("ID is required to  add state")
+      }
+      toggleActive(state.data,action.payload)
+      state.data[action.payload.id] = createFile({...initState,id:action.payload.id,active:true})
+      debugger
+      state.ids = Array.from(new Set([...state.ids,action.payload.id]))
     },
     [constant.deleteState]:(state,action:PayloadAction<{id:string}>)=>{
         const newState =JSON.parse(JSON.stringify(state.data))
         delete newState[action.payload.id]
-        console.log("logging new state")
-        console.log(newState)
         state.data = newState
         const newIds = state.ids.filter(item=>item!==action.payload.id)
         const lastElement = newIds.length-1
         state.ids = newIds
         if(lastElement>=0) newState[state.ids[lastElement]].active = true
-        console.log("logging state after delete")
-        console.log(state.data)
     }
   }
 })
