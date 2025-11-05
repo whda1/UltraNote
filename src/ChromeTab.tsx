@@ -23,6 +23,8 @@ export function ChromeTab(){
     dispatch(FileSliceAction.ADD_STATE({id:newId,fileContent}))
   };
   const active = (id: string) => {
+    // the tab library somehow will do the active twice 
+    if(id===activeFile.id)return 
     const fileContent = JSON.stringify(serializedDocumentFromEditorState(editor.getEditorState()));
     dispatch(FileSliceAction.TOGGLE_ACTIVE({id:id,fileContent}));
   };
@@ -31,10 +33,20 @@ export function ChromeTab(){
     dispatch(FileSliceAction.DELETE_STATE({id}));
   };
 
-  useEffect(() => {
-    if(isNullOrUndefined(activeFile)) return;
-    getImportFile(editor,activeFile.fileContent??"");
-  }, [activeFile]);
+  useEffect(()=>{
+    if(isNullOrUndefined(activeFile))return
+    switch(activeFile.byType){
+      case "saveWithDialog":
+      case "activeTabUpdated":
+        getImportFile(editor,activeFile.fileContent??"");
+        return
+      case "import":
+        return
+      case "saveWithoutDialog":
+        return 
+    }
+    return ()=>{}
+  },[activeFile])
 
   return <Tabs
       onTabClose={close}

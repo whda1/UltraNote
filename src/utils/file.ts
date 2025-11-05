@@ -4,6 +4,7 @@ import { isNullOrUndefined } from "./helper";
 
 export async function getImportFile(editor: LexicalEditor,fileContent:string) {
     editor.setEditorState(editorStateFromSerializedDocument(editor, fileContent));
+    editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
 }
 
 type filePathObject = {

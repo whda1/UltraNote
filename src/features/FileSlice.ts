@@ -13,9 +13,10 @@ export type initStateType = {
   fileFullPath:string,
   fileContent:string,
   active:boolean,
-  id:string
-  title?:string
-  isDirty:boolean
+  id:string,
+  title?:string,
+  isDirty:boolean,
+  byType:"activeTabUpdated" | "saveWithDialog" | "saveWithoutDialog" | "import"
 }
 
 export const initialFileContent = '{"editorState":{"root":{"children":[{"children":[{"detail":0,"format":0,"mode":"normal","style":"","text":"","type":"text","version":1}],"direction":null,"format":"","indent":0,"type":"paragraph","version":1,"textFormat":0,"textStyle":""}],"direction":null,"format":"","indent":0,"type":"root","version":1}},"lastSaved":"null","source":"Lexical","version":"0.37.0"}'
@@ -28,7 +29,8 @@ const initState:Nullable<initStateType> = {
   active:true,
   id:null,
   title:"untitled",
-  isDirty:false
+  isDirty:false,
+  byType:"activeTabUpdated"
 }
 
 const initFile = ()=>{
@@ -42,7 +44,7 @@ const initFile = ()=>{
   }
 }
 
-const createFile = ({lastSaved,fileName,fileContent,fileFullPath,filePath,id,isDirty,active}:Nullable<initStateType>)=>{
+const createFile = ({lastSaved,fileName,fileContent,fileFullPath,filePath,id,isDirty,active,byType}:Nullable<initStateType>)=>{
   const titlePostfix = isDirty?" - *":""
   const result:any = {}
   result.filePath = filePath,
@@ -51,9 +53,11 @@ const createFile = ({lastSaved,fileName,fileContent,fileFullPath,filePath,id,isD
   result.lastSaved = lastSaved
   result.fileContent = fileContent??initialFileContent
   result.active = active
-  result.title ="🗂️ "+ (result.fileName ?? "untitled") + titlePostfix
+  // result.title ="🗂️ "+ (result.fileName ?? "untitled") + titlePostfix
+  result.title = id
   result.id = id
   result.isDirty = isDirty
+  result.byType = byType
   return result
 }
 
@@ -70,10 +74,10 @@ function toggleActive(data:any,payload:any){
   for (const key in data){
     if(data[key].active === true && key !== payload.id){
       const isDirty = data[key].isDirty===true?true:getIsDirty(data[key].fileContent,payload.fileContent)
-      data[key] = createFile({...data[key],isDirty:isDirty,active:false,fileContent:payload.fileContent})
+      data[key] = createFile({...data[key],isDirty:isDirty,active:false,fileContent:payload.fileContent,byType:"activeTabUpdated"})
       continue
     }
-    data[key] = createFile({...data[key],active:key===payload.id})
+    data[key] = createFile({...data[key],active:key===payload.id, byType:"activeTabUpdated"})
   }
 }
 
@@ -107,8 +111,7 @@ export const FileSlice = createSlice({
         throw new Error("ID is required to  add state")
       }
       toggleActive(state.data,action.payload)
-      state.data[action.payload.id] = createFile({...initState,id:action.payload.id,active:true})
-      debugger
+      state.data[action.payload.id] = createFile({...initState,id:action.payload.id,active:true,byType:"activeTabUpdated"})
       state.ids = Array.from(new Set([...state.ids,action.payload.id]))
     },
     [constant.deleteState]:(state,action:PayloadAction<{id:string}>)=>{
@@ -116,9 +119,12 @@ export const FileSlice = createSlice({
         delete newState[action.payload.id]
         state.data = newState
         const newIds = state.ids.filter(item=>item!==action.payload.id)
-        const lastElement = newIds.length-1
+        const lastElementIndex = newIds.length-1
         state.ids = newIds
-        if(lastElement>=0) newState[state.ids[lastElement]].active = true
+        if(lastElementIndex>=0) {
+          const lastElementId = state.ids[lastElementIndex]
+          state.data[lastElementId] = {...state.data[lastElementId],active:true,byType:"activeTabUpdated"} 
+      }
     }
   }
 })
@@ -136,7 +142,7 @@ export const selectFiles = createSelector([selectFileSlice],(slice)=>{
   }
 )
 
-export const selectMemActiveFile = createSelector([selectFiles], (items)=>{
+export const selectMemActiveFile:(param:any)=>Nullable<initStateType> = createSelector([selectFiles], (items)=>{
     for(const item of items){
         if(item.active===true){
             return item
