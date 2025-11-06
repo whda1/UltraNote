@@ -74,7 +74,6 @@ import {
   useToolbarState,
 } from '../../context/ToolbarContext';
 import useModal from '../../hooks/useModal';
-import catTypingGif from '../../images/cat-typing.gif';
 import {$createStickyNode} from '../../nodes/StickyNode';
 import DropDown, {DropDownItem} from '../../ui/DropDown';
 import DropdownColorPicker from '../../ui/DropdownColorPicker';
@@ -1297,17 +1296,6 @@ export default function ToolbarPlugin({
                 </DropDownItem>
                 <DropDownItem
                   onClick={() =>
-                    insertGifOnClick({
-                      altText: 'Cat typing on a laptop',
-                      src: catTypingGif,
-                    })
-                  }
-                  className="item">
-                  <i className="icon gif" />
-                  <span className="text">GIF</span>
-                </DropDownItem>
-                <DropDownItem
-                  onClick={() =>
                     dispatchToolbarCommand(INSERT_EXCALIDRAW_COMMAND)
                   }
                   className="item">
@@ -1424,6 +1412,18 @@ export default function ToolbarPlugin({
         editor={activeEditor}
         isRTL={toolbarState.isRTL}
       />
+      <button
+        onClick={(e) =>
+          console.log("Adding font into the system")
+        }
+        title={IS_APPLE ? 'Undo (⌘Z)' : 'Undo (Ctrl+Z)'}
+        type="button"
+        className="toolbar-item spaced"
+        aria-label="import-forn-family">
+          <i className='format bold"'/>
+          <span className="icon plus" />
+          <span className="text">Import Font</span>
+      </button>
 
       {modal}
     </div>
