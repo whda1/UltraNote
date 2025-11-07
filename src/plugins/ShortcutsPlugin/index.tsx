@@ -18,7 +18,7 @@ import {
   LexicalEditor,
   OUTDENT_CONTENT_COMMAND,
 } from 'lexical';
-import {Dispatch, useEffect} from 'react';
+import {Dispatch, useEffect, useState} from 'react';
 
 import {useToolbarState} from '../../context/ToolbarContext';
 import {sanitizeUrl} from '../../utils/url';
@@ -48,6 +48,7 @@ import {
   isFormatNumberedList,
   isFormatParagraph,
   isFormatQuote,
+  isImportFile,
   isIncreaseFontSize,
   isIndent,
   isInsertCodeBlock,
@@ -57,11 +58,18 @@ import {
   isLowercase,
   isOutdent,
   isRightAlign,
+  isSaveFile,
+  isSaveFileSilent,
   isStrikeThrough,
   isSubscript,
   isSuperscript,
   isUppercase,
 } from './shortcuts';
+import { FileSliceAction, initStateType, selectFiles, selectFileSlice, selectMemActiveFile } from '../../features/FileSlice';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { serializedDocumentFromEditorState } from '@lexical/file';
+import { getExportFile, getFilePath, getImportFile } from '../../utils/file';
+import { isNullOrUndefined } from '../../utils/helper';
 
 export default function ShortcutsPlugin({
   editor,
@@ -71,6 +79,68 @@ export default function ShortcutsPlugin({
   setIsLinkEditMode: Dispatch<boolean>;
 }): null {
   const {toolbarState} = useToolbarState();
+  // Editor state
+  debugger
+  const allFiles = useAppSelector(selectFileSlice)
+  const activeFile:Nullable<initStateType> = useAppSelector(selectMemActiveFile)
+  const dispatch = useAppDispatch()
+
+  const saveFile = async ()=>{
+    try{
+      const {fileContent,fileName,lastSaved} = await getExportFile(editor,{fileName:activeFile?.fileName??undefined})
+      const stringifiedContent = JSON.stringify(serializedDocumentFromEditorState(editor.getEditorState()));
+      const filePath = await window.ipcRenderer.saveWithDialog({fileContent,fileName})
+      dispatch(FileSliceAction.SET_STATE({
+        id:activeFile!.id,
+        lastSaved,
+        ...getFilePath(filePath),
+        fileContent:stringifiedContent,
+        active:true,
+        isDirty:false,
+        byType:"saveWithDialog"
+      }))
+      console.log(allFiles)
+    }
+    catch{
+        throw new Error("Error occurs when saving ")
+    
+    }
+  }
+
+  const saveFileSilent = async ()=>{
+    try{
+      const {fileContent,fileName,lastSaved} = await getExportFile(editor,{fileName:activeFile?.fileName??undefined})
+      const stringifiedContent = JSON.stringify(serializedDocumentFromEditorState(editor.getEditorState()));
+      await window.ipcRenderer.saveWithoutDialog({fileContent:stringifiedContent,fileName:`${activeFile.fileName}`,filePath:activeFile.filePath})
+      dispatch(FileSliceAction.SET_STATE({
+        ...activeFile,
+        id:activeFile!.id,
+        lastSaved,
+        fileContent:stringifiedContent,
+        active:true,
+        isDirty:false,
+        byType:"saveWithoutDialog"
+      }))
+    }catch{
+      throw new Error("Error occurs during slient file export")
+    }
+  }
+
+  const importFile = async ()=>{
+    try{
+      const {fileContent,filePath} = await window.ipcRenderer.readFileWithDialog()
+      getImportFile(editor,fileContent)
+      dispatch(FileSliceAction.SET_STATE({...activeFile,...getFilePath(filePath), lastSaved:null, fileContent,isDirty:false,byType:"import"} as any) )
+    }catch{
+      throw new Error("Error occurs during file import")
+    }
+  }
+
+  useEffect(()=>{
+    debugger
+    console.log(selectMemActiveFile)
+    console.log(selectFiles)
+  },[selectMemActiveFile,selectFiles])
 
   useEffect(() => {
     const keyboardShortcutsHandler = (event: KeyboardEvent) => {
@@ -139,10 +209,30 @@ export default function ShortcutsPlugin({
         editor.dispatchCommand(TOGGLE_LINK_COMMAND, url);
       } else if (isAddComment(event)) {
         editor.dispatchCommand(INSERT_INLINE_COMMAND, undefined);
-      } else {
+      } else if (isSaveFile(event)){
+        saveFile()
+        console.log("saving file")
+        
+      }
+      else if (isSaveFileSilent(event)){
+        debugger
+        if(isNullOrUndefined(activeFile?.fileFullPath)){
+          saveFile()
+          console.log("saving file")
+        }
+        else{
+          saveFileSilent()
+          console.log("saving file silently")
+        }
+
+      }else if (isImportFile(event)){
+        importFile()
+        console.log("importing file")
+      }
+      else {
         // No match for any of the event handlers
         return false;
-      }
+      } 
       event.preventDefault();
       return true;
     };
@@ -158,7 +248,9 @@ export default function ShortcutsPlugin({
     toolbarState.blockType,
     toolbarState.fontSizeInputValue,
     setIsLinkEditMode,
+    activeFile
   ]);
 
   return null;
 }
+

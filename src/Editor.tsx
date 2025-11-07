@@ -155,60 +155,6 @@ export default function Editor(): JSX.Element {
   };
 
 
-
-
-  const handleKeyUp:KeyboardEventHandler<HTMLDivElement> = async (event)=>{
-    
-    if(event.ctrlKey===true && event.key.toLowerCase()==='s'){
-      const {fileContent,fileName,lastSaved} = await getExportFile(editor,{fileName:activeFile?.fileName??undefined})
-      // Do when currentFile is null or shiftKey is also press
-      // shirftKey pressed indicates Save as action
-      const stringifiedContent = JSON.stringify(serializedDocumentFromEditorState(editor.getEditorState()));
-      if(isNullOrUndefined(activeFile?.fileFullPath) || event.shiftKey===true){
-        try{
-          const filePath = await window.ipcRenderer.saveWithDialog({fileContent,fileName})
-          dispatch(FileSliceAction.SET_STATE({
-            id:activeFile!.id,
-            lastSaved,
-            ...getFilePath(filePath),
-            fileContent:stringifiedContent,
-            active:true,
-            isDirty:false,
-            byType:"saveWithDialog"
-          })) 
-        }catch{
-          throw new Error("Error occurs during file export")
-        }
-      }else{
-        try{
-          await window.ipcRenderer.saveWithoutDialog({fileContent:stringifiedContent,fileName:`${activeFile.fileName}`,filePath:activeFile.filePath})
-          dispatch(FileSliceAction.SET_STATE({
-            ...activeFile,
-            id:activeFile!.id,
-            lastSaved,
-            fileContent:stringifiedContent,
-            active:true,
-            isDirty:false,
-            byType:"saveWithoutDialog"
-          }))
-        }catch{
-          throw new Error("Error occurs during slient file export")
-        }
-      }
-      
-    }else if (event.ctrlKey === true && event.key.toLowerCase() === 'i'){
-      try{
-        const {fileContent,filePath} = await window.ipcRenderer.readFileWithDialog()
-        getImportFile(editor,fileContent)
-        
-        dispatch(FileSliceAction.SET_STATE({...activeFile,...getFilePath(filePath), lastSaved:null, fileContent,isDirty:false,byType:"import"} as any) )
-      }catch{
-        throw new Error("Error occurs during file import")
-      }
-    }
-  }
-
-
   useEffect(() => {
     const updateViewPortWidth = () => {
       const isNextSmallWidthViewport =
@@ -247,7 +193,6 @@ export default function Editor(): JSX.Element {
           />
         )}
         <div
-          onKeyUp={handleKeyUp}
           className={`editor-container ${showTreeView ? 'tree-view' : ''} ${
             !isRichText ? 'plain-text' : ''
           }`}>

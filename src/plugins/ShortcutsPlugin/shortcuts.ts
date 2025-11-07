@@ -36,6 +36,7 @@ export const SHORTCUTS = Object.freeze({
   JUSTIFY_ALIGN: IS_APPLE ? '⌘+Shift+J' : 'Ctrl+Shift+J',
   LEFT_ALIGN: IS_APPLE ? '⌘+Shift+L' : 'Ctrl+Shift+L',
   RIGHT_ALIGN: IS_APPLE ? '⌘+Shift+R' : 'Ctrl+Shift+R',
+  SAVE_FILE: IS_APPLE ? '⌘+Shift+S' : 'Ctrl+Shift+S',
 
   // (Ctrl|⌘) + <key> shortcuts
   SUBSCRIPT: IS_APPLE ? '⌘+,' : 'Ctrl+,',
@@ -49,9 +50,13 @@ export const SHORTCUTS = Object.freeze({
   ITALIC: IS_APPLE ? '⌘+I' : 'Ctrl+I',
   UNDERLINE: IS_APPLE ? '⌘+U' : 'Ctrl+U',
   INSERT_LINK: IS_APPLE ? '⌘+K' : 'Ctrl+K',
+  SAVE_FILE_SLIENT: IS_APPLE? '⌘+S' : 'Ctrl+S',
 });
 
+
+// we can simply use 
 const CONTROL_OR_META = {ctrlKey: !IS_APPLE, metaKey: IS_APPLE};
+
 
 export function isFormatParagraph(event: KeyboardEvent): boolean {
   const {code} = event;
@@ -245,4 +250,29 @@ export function isAddComment(event: KeyboardEvent): boolean {
     code === 'KeyM' &&
     isModifierMatch(event, {...CONTROL_OR_META, altKey: true})
   );
+}
+
+
+export function isSaveFile(event:KeyboardEvent): boolean {
+  const {code} = event
+  return (
+    code === "KeyS" &&
+    isModifierMatch(event,{...CONTROL_OR_META,shiftKey:true})
+  )
+}
+
+export function isSaveFileSilent(event:KeyboardEvent):boolean{
+  const {code} = event
+  return (
+    code === "KeyS" && 
+    isModifierMatch(event,{...CONTROL_OR_META})
+  )
+}
+
+export function isImportFile(event:KeyboardEvent):boolean{
+  const {code} = event
+  return (
+    code ==="KeyI" &&
+    isModifierMatch(event,{...CONTROL_OR_META})
+  )
 }
