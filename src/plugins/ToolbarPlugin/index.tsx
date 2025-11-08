@@ -106,6 +106,7 @@ import {
   formatParagraph,
   formatQuote,
 } from './utils';
+import { isNullOrUndefined } from '../../utils/helper';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const rootTypeToRootName = {
@@ -1357,10 +1358,16 @@ export default function ToolbarPlugin({
                 </DropDownItem>
                 <DropDownItem
                   onClick={() => {
+                    
                     editor.update(() => {
                       $addUpdateTag(SKIP_SELECTION_FOCUS_TAG);
                       const root = $getRoot();
-                      const stickyNode = $createStickyNode(0, 0);
+                      const selection = $getSelection();
+                      let offsetY = 0
+                      if(!isNullOrUndefined(selection) && $isRangeSelection(selection)){
+                        offsetY = editor.getElementByKey(selection.focus.key)?.getClientRects()[0].top ?? 0
+                      }
+                      const stickyNode = $createStickyNode(0, offsetY);
                       root.append(stickyNode);
                     });
                   }}

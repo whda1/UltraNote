@@ -80,7 +80,6 @@ export default function ShortcutsPlugin({
 }): null {
   const {toolbarState} = useToolbarState();
   // Editor state
-  debugger
   const allFiles = useAppSelector(selectFileSlice)
   const activeFile:Nullable<initStateType> = useAppSelector(selectMemActiveFile)
   const dispatch = useAppDispatch()
@@ -137,7 +136,6 @@ export default function ShortcutsPlugin({
   }
 
   useEffect(()=>{
-    debugger
     console.log(selectMemActiveFile)
     console.log(selectFiles)
   },[selectMemActiveFile,selectFiles])
@@ -215,7 +213,6 @@ export default function ShortcutsPlugin({
         
       }
       else if (isSaveFileSilent(event)){
-        debugger
         if(isNullOrUndefined(activeFile?.fileFullPath)){
           saveFile()
           console.log("saving file")

@@ -6,7 +6,7 @@
  *
  */
 
-import type {Klass, LexicalNode} from 'lexical';
+import {ParagraphNode, type Klass, type LexicalNode} from 'lexical';
 
 import {CodeHighlightNode, CodeNode} from '@lexical/code';
 import {HashtagNode} from '@lexical/hashtag';
@@ -38,6 +38,7 @@ import {SpecialTextNode} from './SpecialTextNode';
 import {StickyNode} from './StickyNode';
 import {TweetNode} from './TweetNode';
 import {YouTubeNode} from './YouTubeNode';
+import { $createNewParagraphNode, NewParagraphNode } from './NewParagraphNode';
 
 const PlaygroundNodes: Array<Klass<LexicalNode>> = [
   HeadingNode,
@@ -75,6 +76,14 @@ const PlaygroundNodes: Array<Klass<LexicalNode>> = [
   LayoutItemNode,
   SpecialTextNode,
   DateTimeNode,
+  ParagraphNode,
+  NewParagraphNode,
+  {
+    replace:ParagraphNode,
+    with: () => $createNewParagraphNode(),
+    withKlass: NewParagraphNode,
+
+  } as any
 ];
 
 export default PlaygroundNodes;
