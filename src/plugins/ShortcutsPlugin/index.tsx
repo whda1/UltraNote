@@ -86,6 +86,8 @@ export default function ShortcutsPlugin({
 
   const saveFile = async ()=>{
     try{
+      // If this is not the root editor, do not do save
+      if(!isNullOrUndefined(editor._parentEditor)) return 
       const {fileContent,fileName,lastSaved} = await getExportFile(editor,{fileName:activeFile?.fileName??undefined})
       const stringifiedContent = JSON.stringify(serializedDocumentFromEditorState(editor.getEditorState()));
       const filePath = await window.ipcRenderer.saveWithDialog({fileContent,fileName})
@@ -108,6 +110,8 @@ export default function ShortcutsPlugin({
 
   const saveFileSilent = async ()=>{
     try{
+      // If this is not the root editor, do not do save
+      if(!isNullOrUndefined(editor._parentEditor)) return
       const {fileContent,fileName,lastSaved} = await getExportFile(editor,{fileName:activeFile?.fileName??undefined})
       const stringifiedContent = JSON.stringify(serializedDocumentFromEditorState(editor.getEditorState()));
       await window.ipcRenderer.saveWithoutDialog({fileContent:stringifiedContent,fileName:`${activeFile.fileName}`,filePath:activeFile.filePath})
@@ -127,6 +131,8 @@ export default function ShortcutsPlugin({
 
   const importFile = async ()=>{
     try{
+      // If this is not the root editor, do not do import
+      if(!isNullOrUndefined(editor._parentEditor)) return
       const {fileContent,filePath} = await window.ipcRenderer.readFileWithDialog()
       getImportFile(editor,fileContent)
       dispatch(FileSliceAction.SET_STATE({...activeFile,...getFilePath(filePath), lastSaved:null, fileContent,isDirty:false,byType:"import"} as any) )
@@ -218,6 +224,7 @@ export default function ShortcutsPlugin({
           console.log("saving file")
         }
         else{
+          debugger
           saveFileSilent()
           console.log("saving file silently")
         }

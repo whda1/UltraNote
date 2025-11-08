@@ -16,6 +16,9 @@
 }
 
 
+
+
+
 body {
   margin: 0;
   font-family:
@@ -1582,14 +1585,14 @@ button.toolbar-item.active i {
 .sticky-note-container {
   position: absolute;
   z-index: 9;
-  width: 120px;
+  width: 400px;
   display: inline-block;
 }
 
 .sticky-note {
   line-height: 1;
   text-align: left;
-  width: 120px;
+  width: 400px;
   margin: 25px;
   padding: 20px 10px;
   position: relative;

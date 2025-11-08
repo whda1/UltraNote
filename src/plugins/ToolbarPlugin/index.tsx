@@ -194,6 +194,7 @@ const FONT_FAMILY_OPTIONS: [string, string][] = [
   ['Trebuchet MS', 'Trebuchet MS'],
   ['Verdana', 'Verdana'],
   ['Dorelia', 'Dorelia'],
+  ['Shadows Into Light', 'Shadows Into Light'],
 ];
 
 const FONT_SIZE_OPTIONS: [string, string][] = [
